@@ -134,7 +134,7 @@ public:
             }
             catch (tf2::TransformException ex)
             {
-                RCLCPP_ERROR(get_logger(), "%s", ex.what());
+                // RCLCPP_ERROR(get_logger(), "ssssssss%s", ex.what());
             }
             tf2::Stamped<tf2::Transform> tb(
                 tCur * lidar2Baselink, tf2_ros::fromMsg(odomMsg->header.stamp), odometryFrame);
@@ -233,6 +233,10 @@ public:
         imuOpt.callback_group = callbackGroupImu;
         auto odomOpt = rclcpp::SubscriptionOptions();
         odomOpt.callback_group = callbackGroupOdom;
+        //打印imuTopic
+        // RCLCPP_INFO(get_logger(), "imuTopic: %s", imuTopic.c_str());
+        // cout打印imuTopic
+        // cout << "imuTopic: " << imuTopic << endl;
 
         subImu = create_subscription<sensor_msgs::msg::Imu>(
             imuTopic, qos_imu,
@@ -310,10 +314,8 @@ public:
             resetOptimization();
 
             // pop old IMU message
-            while (!imuQueOpt.empty())
-            {
-                if (stamp2Sec(imuQueOpt.front().header.stamp) < currentCorrectionTime - delta_t)
-                {
+            while (!imuQueOpt.empty()) {
+                if (stamp2Sec(imuQueOpt.front().header.stamp) < currentCorrectionTime - delta_t) {
                     lastImuT_opt = stamp2Sec(imuQueOpt.front().header.stamp);
                     imuQueOpt.pop_front();
                 }
@@ -457,7 +459,7 @@ public:
             {
                 sensor_msgs::msg::Imu *thisImu = &imuQueImu[i];
                 double imuTime = stamp2Sec(thisImu->header.stamp);
-                double dt = (lastImuQT < 0) ? (1.0 / 500.0) :(imuTime - lastImuQT);
+                double dt = (lastImuQT < 0) ? (1.0 / 500.0) : (imuTime - lastImuQT);
 
                 imuIntegratorImu_->integrateMeasurement(gtsam::Vector3(thisImu->linear_acceleration.x, thisImu->linear_acceleration.y, thisImu->linear_acceleration.z),
                                                         gtsam::Vector3(thisImu->angular_velocity.x,    thisImu->angular_velocity.y,    thisImu->angular_velocity.z), dt);
@@ -492,6 +494,7 @@ public:
     void imuHandler(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
     {
         std::lock_guard<std::mutex> lock(mtx);
+        // cout << "  frame_id: " << imu_raw->header.frame_id << endl;
 
         sensor_msgs::msg::Imu thisImu = imuConverter(*imu_raw);
 

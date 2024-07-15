@@ -1,0 +1,2 @@
+原git:  这是ros2中 lio_sam git源码 没有添加和小车通讯什么的
+现:  把在github上下载的LIO-SAM_MID360_ROS2　适配min360的激光数据 lio_sam ros2 的代码 复制过来 对比看改哪里了
