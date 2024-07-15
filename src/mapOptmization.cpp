@@ -15,6 +15,9 @@
 #include <gtsam/inference/Symbol.h>
 
 #include <gtsam/nonlinear/ISAM2.h>
+#include "Tools.h"
+#include "RoboLocClnt.h"
+#include "ParameterObject.h"
 
 using namespace gtsam;
 
@@ -188,14 +191,18 @@ public:
             int unused = system((std::string("exec rm -r ") + saveMapDirectory).c_str());
             unused = system((std::string("mkdir -p ") + saveMapDirectory).c_str());
             // save key frame transformations
+             std::cout << "1111(int)cloudKeyPoses3D->size()"<< (int)cloudKeyPoses3D->size()<< std::endl;
             pcl::io::savePCDFileBinary(saveMapDirectory + "/trajectory.pcd", *cloudKeyPoses3D);
             pcl::io::savePCDFileBinary(saveMapDirectory + "/transformations.pcd", *cloudKeyPoses6D);
             // extract global point cloud map
+            std::cout << "1111"<< std::endl;
+
             pcl::PointCloud<PointType>::Ptr globalCornerCloud(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr globalCornerCloudDS(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr globalSurfCloud(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr globalSurfCloudDS(new pcl::PointCloud<PointType>());
             pcl::PointCloud<PointType>::Ptr globalMapCloud(new pcl::PointCloud<PointType>());
+            std::cout << "(int)cloudKeyPoses3D->size()"<< (int)cloudKeyPoses3D->size()<< std::endl;
             for (int i = 0; i < (int)cloudKeyPoses3D->size(); i++) 
             {
                 *globalCornerCloud += *transformPointCloud(cornerCloudKeyFrames[i],  &cloudKeyPoses6D->points[i]);
@@ -328,6 +335,26 @@ public:
             publishOdometry();
 
             publishFrames();
+            // auto pRoboClnt= RoboClntSingleton::GetInstance();
+            // std::cout << "pRoboClnt: " << (bool)pRoboClnt << std::endl;
+            // if(pRoboClnt)
+            // {
+            //     // ros2获取系统时间
+            //     //unsigned long long pos_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            //     unsigned long long pos_time =  GetTickCount();
+            //     // pRoboClnt->SetRoboPose(transformTobeMapped[3] * 1000.0, transformTobeMapped[4] * 1000.0, transformTobeMapped[2]*1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0);
+            //     if(pRoboClnt->SetRoboPose(10* 1000.0, 20* 1000.0, 5* 1000.0, 0, 0, 0, 0, 0, 0, 0, 0, pos_time, 1, 0, 0))
+            //     {
+            //         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "SetRoboPose success");
+            //     }
+            //     else
+            //     {
+            //         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "SetRoboPose failed");
+            //     }
+            //     //打印当前位姿
+            //     // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "current pose: %f %f %f", transformTobeMapped[3] * 1000.0, transformTobeMapped[4] * 1000.0, transformTobeMapped[2] * 1000.0);
+            //     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "current pose: %f %f %f", 10 * 1000.0, 20 * 1000.0, 5 * 1000.0);
+            // }
         }
     }
 
@@ -353,25 +380,6 @@ public:
 
         Eigen::Affine3f transCur = pcl::getTransformation(transformIn->x, transformIn->y, transformIn->z, transformIn->roll, transformIn->pitch, transformIn->yaw);
         
-        #pragma omp parallel for num_threads(numberOfCores)
-        for (int i = 0; i < cloudSize; ++i)
-        {
-            const auto &pointFrom = cloudIn->points[i];
-            cloudOut->points[i].x = transCur(0,0) * pointFrom.x + transCur(0,1) * pointFrom.y + transCur(0,2) * pointFrom.z + transCur(0,3);
-            cloudOut->points[i].y = transCur(1,0) * pointFrom.x + transCur(1,1) * pointFrom.y + transCur(1,2) * pointFrom.z + transCur(1,3);
-            cloudOut->points[i].z = transCur(2,0) * pointFrom.x + transCur(2,1) * pointFrom.y + transCur(2,2) * pointFrom.z + transCur(2,3);
-            cloudOut->points[i].intensity = pointFrom.intensity;
-        }
-        return cloudOut;
-    }
-
-    pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn,  Eigen::Affine3f transCur)
-    {
-        pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
-
-        int cloudSize = cloudIn->size();
-        cloudOut->resize(cloudSize);
-
         #pragma omp parallel for num_threads(numberOfCores)
         for (int i = 0; i < cloudSize; ++i)
         {
@@ -1311,7 +1319,7 @@ public:
             kdtreeCornerFromMap->setInputCloud(laserCloudCornerFromMapDS);
             kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMapDS);
 
-            for (int iterCount = 0; iterCount < 20; iterCount++)
+            for (int iterCount = 0; iterCount < 30; iterCount++)
             {
                 laserCloudOri->clear();
                 coeffSel->clear();
@@ -1676,7 +1684,7 @@ public:
         tf2::Stamped<tf2::Transform> temp_odom_to_lidar(t_odom_to_lidar, time_point, odometryFrame);
         geometry_msgs::msg::TransformStamped trans_odom_to_lidar;
         tf2::convert(temp_odom_to_lidar, trans_odom_to_lidar);
-        trans_odom_to_lidar.child_frame_id = "lidar_link";
+        trans_odom_to_lidar.child_frame_id = "livox_frame";
         br->sendTransform(trans_odom_to_lidar);
 
         // Publish odometry for ROS (incremental)
@@ -1783,10 +1791,55 @@ int main(int argc, char** argv)
     exec.add_node(MO);
 
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "\033[1;32m----> Map Optimization Started.\033[0m");
+   // 定义定位系统通信通道
+    auto pRoboClnt = RoboClntSingleton::GetInstance(_T(""), RL_SERVER_UDP_PORT, FALSE, TRUE);
+    if(!pRoboClnt){
+        std::cout << "pRoboClnt fail!" << std::endl;
+    }else{
+         std::cout << "pRoboClnt ok!" << std::endl;
+    }
+     //Create the udp communicate channel.
+     auto pParameterObject = ParameterObjectSingleton::GetInstance();
+     std::cout << "pParameterObject ok!" << std::endl;
+     if(!pParameterObject->InitializeParameters()){
+        std::cout << "InitializeParameters faild!" << std::endl;
+        return false;
+    }
+    std::cout << "LoadRoboLocParm ok!" << std::endl;
+    if(!pRoboClnt->CreateUdpCom())
+    {
+         #ifdef USE_BLACK_BOX
+             FILE_BlackBox(MsgBox, "Create the udp communicate fail!");
+         #endif
+         std::cout << "Create the udp communicate 222!" << std::endl;
+    }
+    std::cout << "Create the udp communicate ok!" << std::endl;
 
     std::thread loopthread(&mapOptimization::loopClosureThread, MO);
     std::thread visualizeMapThread(&mapOptimization::visualizeGlobalMapThread, MO);
-
+    // while(1)
+    // {
+    //     auto pRoboClnt= RoboClntSingleton::GetInstance();
+    //     std::cout << "pRoboClnt: " << (bool)pRoboClnt << std::endl;
+    //     if(pRoboClnt)
+    //     {
+    //         unsigned long long pos_time =  GetTickCount();
+    //         // pRoboClnt->SetRoboPose(transformTobeMapped[3] * 1000.0, transformTobeMapped[4] * 1000.0, transformTobeMapped[2]*1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0);
+    //         if(pRoboClnt->SetRoboPose(10* 1000.0, 20* 1000.0, 5* 1000.0, 0, 0, 0, 0, 0, 0, 0, 0, pos_time, 1, 0, 0))
+    //         {
+    //             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "SetRoboPose success");
+    //         }
+    //         else
+    //         {
+    //             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "SetRoboPose failed");
+    //         }
+    //         //打印当前位姿
+    //         // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "current pose: %f %f %f", transformTobeMapped[3] * 1000.0, transformTobeMapped[4] * 1000.0, transformTobeMapped[2] * 1000.0);
+    //         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "current pose: %f %f %f", 10 * 1000.0, 20 * 1000.0, 5 * 1000.0);
+    //     }
+    //      //添加一个50ms的延时
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // }
     exec.spin();
 
     rclcpp::shutdown();

@@ -233,10 +233,6 @@ public:
         imuOpt.callback_group = callbackGroupImu;
         auto odomOpt = rclcpp::SubscriptionOptions();
         odomOpt.callback_group = callbackGroupOdom;
-        //打印imuTopic
-        // RCLCPP_INFO(get_logger(), "imuTopic: %s", imuTopic.c_str());
-        // cout打印imuTopic
-        // cout << "imuTopic: " << imuTopic << endl;
 
         subImu = create_subscription<sensor_msgs::msg::Imu>(
             imuTopic, qos_imu,
@@ -494,7 +490,6 @@ public:
     void imuHandler(const sensor_msgs::msg::Imu::SharedPtr imu_raw)
     {
         std::lock_guard<std::mutex> lock(mtx);
-        // cout << "  frame_id: " << imu_raw->header.frame_id << endl;
 
         sensor_msgs::msg::Imu thisImu = imuConverter(*imu_raw);
 

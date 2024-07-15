@@ -317,7 +317,8 @@ public:
         sensor_msgs::msg::Imu imu_out = imu_in;
         // rotate acceleration
         Eigen::Vector3d acc(imu_in.linear_acceleration.x, imu_in.linear_acceleration.y, imu_in.linear_acceleration.z);
-        
+        //Livox Mid-360 3D激光雷达：加速度数据可能是以g为单位，需要转换为m/s²，以确保在处理时一致性。
+        //将加速度数据从g转换为m/s²。
         acc*=imuGravity;
 
         acc = extRot * acc;

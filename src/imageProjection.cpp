@@ -122,7 +122,8 @@ public:
         imuOpt.callback_group = callbackGroupImu;
         auto odomOpt = rclcpp::SubscriptionOptions();
         odomOpt.callback_group = callbackGroupOdom;
-
+        //打印imuTopic
+        // RCLCPP_INFO(get_logger(), "imuTopic: %s", imuTopic.c_str());
         subImu = create_subscription<sensor_msgs::msg::Imu>(
             imuTopic, qos_imu,
             std::bind(&ImageProjection::imuHandler, this, std::placeholders::_1),
@@ -131,7 +132,8 @@ public:
             odomTopic + "_incremental", qos_imu,
             std::bind(&ImageProjection::odometryHandler, this, std::placeholders::_1),
             odomOpt);
-            // std::cout << "pointCloudTopic: "<< pointCloudTopic << std::endl;
+            //打印pointCloudTopic
+        // RCLCPP_INFO(get_logger(), "pointCloudTopic: %s", pointCloudTopic.c_str());
         subLaserCloud = create_subscription<livox_ros_driver2::msg::CustomMsg>(
             pointCloudTopic, qos_lidar,
             std::bind(&ImageProjection::cloudHandler, this, std::placeholders::_1),
@@ -222,9 +224,6 @@ public:
 
     void cloudHandler(const livox_ros_driver2::msg::CustomMsg::SharedPtr laserCloudMsg)
     {
-        //std 打印laserCloudMsg
-        // std::cout << "frame_id: " << laserCloudMsg->header.frame_id << std::endl;
-        // std::cout << "point_num: " << laserCloudMsg->point_num << std::endl;
         if (!cachePointCloud(laserCloudMsg))
             return;
 
@@ -273,9 +272,8 @@ public:
         // convert cloud
         currentCloudMsg = std::move(cloudQueue.front());
         cloudQueue.pop_front();
-        if (sensor == SensorType::LIVOX){
+        if (sensor == SensorType::LIVOX)
             moveFromCustomMsg(currentCloudMsg, *laserCloudIn);
-        }
         else
         {
             RCLCPP_ERROR_STREAM(get_logger(), "Unknown sensor type: " << int(sensor));
@@ -286,6 +284,10 @@ public:
         cloudHeader = currentCloudMsg.header;
         timeScanCur = stamp2Sec(cloudHeader.stamp);
         timeScanEnd = timeScanCur + laserCloudIn->points.back().time;
+    
+        // remove Nan
+        //vector<int> indices;
+        //pcl::removeNaNFromPointCloud(*laserCloudIn, *laserCloudIn, indices);
 
         // check dense flag
         if (laserCloudIn->is_dense == false)
@@ -294,7 +296,7 @@ public:
             rclcpp::shutdown();
         }
 
-        // // check ring channel
+         // // check ring channel
         // static int ringFlag = 0;
         // if (ringFlag == 0)
         // {
@@ -586,6 +588,15 @@ public:
                 continue;
 
             int rowIdn = laserCloudIn->points[i].ring;
+            // if sensor is a velodyne (ringFlag = 2) calculate rowIdn based on number of scans
+            //if (ringFlag == 2) { 
+            //    float verticalAngle =
+            //        atan2(thisPoint.z,
+            //            sqrt(thisPoint.x * thisPoint.x + thisPoint.y * thisPoint.y)) *
+            //        180 / M_PI;
+            //    rowIdn = (verticalAngle + (N_SCAN - 1)) / 2.0;
+            //}
+
             if (rowIdn < 0 || rowIdn >= N_SCAN)
                 continue;
 
